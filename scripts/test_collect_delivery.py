@@ -124,12 +124,31 @@ class DeliveryTests(unittest.TestCase):
         self.failure("DUPLICATE_JSON_KEY")
 
     def test_dispatch_generation_and_approval_gates(self):
-        for field, value, code in (("dispatch_state", "UNKNOWN", "NOT_SENT"),
+        for field, value, code in (("dispatch_state", "NOT_SENT", "NOT_SENT"),
+                                   ("dispatch_state", "UNKNOWN", "DISPATCH_UNKNOWN"),
                                    ("generation_stopped", False, "GENERATION_NOT_STOPPED"),
                                    ("unresolved_approval", True, "UNRESOLVED_APPROVAL")):
             with self.subTest(field=field):
                 self.write_json(self.session_file, {**self.session, field: value})
                 self.failure(code)
+
+    def test_cli_preserves_known_unsent_and_unknown_dispatch_states(self):
+        for state, code in (("NOT_SENT", "NOT_SENT"), ("UNKNOWN", "DISPATCH_UNKNOWN")):
+            with self.subTest(state=state):
+                self.write_json(self.session_file, {**self.session, "dispatch_state": state})
+                before = self.session_file.read_bytes()
+                with mock.patch("sys.stdout") as stdout:
+                    result = collector.main(["--session", str(self.session_file),
+                                             "--snapshot-dir", str(self.snapshot),
+                                             "--stable-seconds", "0"])
+                emitted = "".join(call.args[0] for call in stdout.write.call_args_list)
+                self.assertEqual(result, 2)
+                self.assertEqual(json.loads(emitted), {
+                    "status": "FAIL", "code": code, "scope": "protocol_only",
+                    "dispatch_state": state,
+                })
+                self.assertEqual(self.session_file.read_bytes(), before)
+                self.assertFalse(self.snapshot.exists())
 
     def test_bytes_changed_during_stability_are_not_frozen(self):
         def revise(_):

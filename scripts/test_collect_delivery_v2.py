@@ -177,11 +177,62 @@ class NamedDeliveryTests(unittest.TestCase):
 
     def test_bool_schema_version_and_unresolved_dispatch_are_rejected(self):
         for field, value, error in (('schema_version', True, 'INVALID_SESSION_SCHEMA'),
-                                    ('dispatch_state', 'UNKNOWN', 'NOT_SENT'),
+                                    ('dispatch_state', 'UNKNOWN', 'DISPATCH_UNKNOWN'),
                                     ('unresolved_approval', True, 'UNRESOLVED_APPROVAL')):
             with self.subTest(field=field):
                 self.write(self.session_path, {**self.session, field: value})
                 self.failure(error)
+
+    def test_dispatch_states_remain_distinct_even_with_complete_outputs(self):
+        for state, error in (('NOT_SENT', 'NOT_SENT'), ('UNKNOWN', 'DISPATCH_UNKNOWN')):
+            with self.subTest(state=state):
+                self.write(self.session_path, {**self.session, 'dispatch_state': state})
+                before = {path: path.read_bytes() for path in (
+                    self.session_path, self.root / self.session['report_file'],
+                    self.root / self.session['completion_file'])}
+                with mock.patch.object(c, 'read_named') as read_outputs:
+                    with self.assertRaises(c.DeliveryError) as caught:
+                        self.collect()
+                self.assertEqual(caught.exception.code, error)
+                self.assertEqual(caught.exception.dispatch_state, state)
+                read_outputs.assert_not_called()
+                self.assertEqual(before, {path: path.read_bytes() for path in before})
+                self.assertFalse(self.receipt.exists())
+                with mock.patch('sys.stdout') as stdout:
+                    exit_code = c.main(['--session', str(self.session_path),
+                                        '--receipt-file', str(self.receipt),
+                                        '--stable-seconds', '0'])
+                emitted = ''.join(call.args[0] for call in stdout.write.call_args_list)
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(json.loads(emitted), {
+                    'status': 'FAIL', 'code': error, 'scope': 'protocol_only',
+                    'dispatch_state': state,
+                })
+        self.write(self.session_path, self.session)
+        self.assertEqual(self.collect()['status'], 'PASS')
+
+    def test_invalid_dispatch_values_are_schema_errors_without_state_echo(self):
+        for state in (None, False, 0, [], {}, '', 'sent', 'SENDING', 'UNKNOWN ',
+                      'NOT_SENT ', 'PRIVATE_INVALID_STATE'):
+            with self.subTest(state=state):
+                self.write(self.session_path, {**self.session, 'dispatch_state': state})
+                before = self.session_path.read_bytes()
+                with mock.patch('sys.stdout') as stdout:
+                    exit_code = c.main(['--session', str(self.session_path),
+                                        '--receipt-file', str(self.receipt),
+                                        '--stable-seconds', '0'])
+                emitted = ''.join(call.args[0] for call in stdout.write.call_args_list)
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(json.loads(emitted), {
+                    'status': 'FAIL', 'code': 'INVALID_SESSION_SCHEMA',
+                    'scope': 'protocol_only',
+                })
+                self.assertEqual(self.session_path.read_bytes(), before)
+                self.assertFalse(self.receipt.exists())
+        without_state = {key: value for key, value in self.session.items()
+                         if key != 'dispatch_state'}
+        self.write(self.session_path, without_state)
+        self.failure('INVALID_SESSION_SCHEMA')
 
 
 if __name__ == '__main__':

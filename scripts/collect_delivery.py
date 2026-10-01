@@ -19,8 +19,9 @@ IDENTITY_FIELDS = ("request_id", "adviser", "input_manifest_sha256")
 
 
 class DeliveryError(Exception):
-    def __init__(self, code):
+    def __init__(self, code, *, dispatch_state=None):
         self.code = code
+        self.dispatch_state = dispatch_state
         super().__init__(code)
 
 
@@ -163,7 +164,15 @@ def validate_session(session):
     require(_nonempty(session["sentinel"]) and
             not any(c in session["sentinel"] for c in "\r\n") and
             len(session["sentinel"]) <= 512, "INVALID_SESSION_SCHEMA")
-    require(session["dispatch_state"] == "SENT", "NOT_SENT")
+    dispatch_state = session["dispatch_state"]
+    require(isinstance(dispatch_state, str) and
+            dispatch_state in ("NOT_SENT", "UNKNOWN", "SENT"),
+            "INVALID_SESSION_SCHEMA")
+    if dispatch_state != "SENT":
+        # UNKNOWN may already have reached the adviser. Preserve that state;
+        # reporting NOT_SENT could cause an unsafe duplicate dispatch.
+        code = "DISPATCH_UNKNOWN" if dispatch_state == "UNKNOWN" else "NOT_SENT"
+        raise DeliveryError(code, dispatch_state=dispatch_state)
     require(session["generation_stopped"] is True, "GENERATION_NOT_STOPPED")
     require(session["unresolved_approval"] is False, "UNRESOLVED_APPROVAL")
     require(type(session.get("findings_required", False)) is bool,
@@ -408,7 +417,10 @@ def main(argv=None):
     try:
         result = collect(args.session, args.snapshot_dir, args.stable_seconds, args.receipt_file)
     except DeliveryError as exc:
-        print(json.dumps({"status": "FAIL", "code": exc.code, "scope": "protocol_only"}))
+        result = {"status": "FAIL", "code": exc.code, "scope": "protocol_only"}
+        if exc.dispatch_state is not None:
+            result["dispatch_state"] = exc.dispatch_state
+        print(json.dumps(result))
         return 2
     except (OSError, ValueError, TypeError, OverflowError):
         # Never print file contents, source excerpts, or arbitrary OS diagnostics.

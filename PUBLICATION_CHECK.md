@@ -52,3 +52,11 @@ The optional skill-creator validator initially required PyYAML not present in th
 ## Final publisher validation
 
 The bundled skill-creator `quick_validate.py` passed on the final package after its PyYAML dependency was supplied outside the package. Requirements are in the body for compatibility with older validators; the package retains valid Agent Skills frontmatter. Independent instruction-level interaction review found no blocking issue. This does not establish live native/browser behavior on macOS or a marketplace certification.
+
+## v0.1.1 dispatch-state correction
+
+The collector previously reported every non-SENT state as `NOT_SENT`. That made an unresolved submission indistinguishable from a confirmed unsent request and could mislead recovery into sending a duplicate. The correction keeps `NOT_SENT` unchanged, returns FAIL / `DISPATCH_UNKNOWN` with `dispatch_state: "UNKNOWN"` for unresolved submission, and rejects missing, non-string or unrecognized states as `INVALID_SESSION_SCHEMA`. Invalid arbitrary values are not echoed in CLI output. Neither the session nor adviser outputs are modified, and no receipt is created for those failures.
+
+Regression coverage now exercises both legacy and shared-directory CLI paths, state preservation even when a complete report already exists, continued acceptance of SENT, invalid strings/types and missing state, and absence of unintended output reads or writes. The complete scripts suite passed on Windows / Python 3.12.14: **66 tests passed, 0 skipped**. Existing identity, sentinel, stable-byte, path/link, approval and receipt checks remain in force.
+
+This patch was validated with synthetic local files only. No native app, model, sending action, Mac UI end-to-end consultation, commit, push or release was performed as part of these tests. `DISPATCH_UNKNOWN` requires recovery of the original conversation; it never authorizes resending or resetting the state to NOT_SENT.
