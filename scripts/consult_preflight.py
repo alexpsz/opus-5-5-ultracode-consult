@@ -124,11 +124,15 @@ def file_access(path, permissions, project):
 
 def check_inputs(adviser, project, prompt, manifest_arg, permissions):
     headers = {}
+    # Parse line endings only; the original prompt and input bytes remain hashed unchanged.
+    lines = [line.removesuffix("\r") for line in prompt.decode("utf-8").split("\n")]
     for name in ("PACKET", "PACKET_SHA256", "INPUT_MANIFEST", "INPUT_MANIFEST_SHA256"):
-        values = re.findall(r"^" + name + r":\s*(\S[^\r\n]*)$", prompt.decode("utf-8"), re.M)
-        delivery.require(len(values) <= 1, "AMBIGUOUS_DISPATCH_HEADER")
-        if values:
-            headers[name] = values[0].strip()
+        declared = [line for line in lines if line.startswith(name + ":")]
+        delivery.require(len(declared) <= 1, "AMBIGUOUS_DISPATCH_HEADER")
+        if declared:
+            matched = re.fullmatch(re.escape(name) + r":[ \t]*(\S[^\r\n]*)", declared[0])
+            delivery.require(matched is not None, "INVALID_DISPATCH_HEADER")
+            headers[name] = matched[1].strip()
     if manifest_arg and "INPUT_MANIFEST" in headers:
         delivery.require(str(manifest_arg) == headers["INPUT_MANIFEST"], "MANIFEST_PATH_MISMATCH")
     manifest_name = manifest_arg or headers.get("INPUT_MANIFEST")

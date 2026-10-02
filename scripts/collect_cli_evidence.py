@@ -5,6 +5,7 @@ Only the receipt's single session and stream-observed tools are eligible. Native
 tool content corroborates access, never comprehension, correctness or acceptance.
 """
 import argparse
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -17,6 +18,7 @@ import uuid
 
 MAX_FILE = 32 * 1024 * 1024
 MAX_TOTAL = 128 * 1024 * 1024
+IS_WINDOWS = os.name == 'nt'
 IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.svg'}
 
 
@@ -35,7 +37,106 @@ def absolute(value):
     path = Path(value)
     require(path.is_absolute() and str(path) == str(value) and
             '..' not in path.parts, 'CANONICAL_ABSOLUTE_PATH_REQUIRED')
+    require(not str(value).startswith(('\\\\', '//')) and '\x00' not in str(value),
+            'LOCAL_PATH_REQUIRED')
+    require(all(':' not in part and not part.endswith(('.', ' '))
+                for part in path.parts[1:]), 'AMBIGUOUS_PATH_REFUSED')
     return path
+
+
+class WindowsFiles:
+    """Native handles preserve no-reparse and no-parent-replacement guarantees."""
+    def __init__(self):
+        import ctypes
+        from ctypes import wintypes
+        self.ctypes = ctypes
+        class Information(ctypes.Structure):
+            _fields_ = [('attributes', wintypes.DWORD), ('created', wintypes.FILETIME),
+                        ('accessed', wintypes.FILETIME), ('written', wintypes.FILETIME),
+                        ('volume', wintypes.DWORD), ('size_high', wintypes.DWORD),
+                        ('size_low', wintypes.DWORD), ('links', wintypes.DWORD),
+                        ('index_high', wintypes.DWORD), ('index_low', wintypes.DWORD)]
+        self.Information = Information
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        self.create = kernel.CreateFileW
+        self.create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        self.create.restype = wintypes.HANDLE
+        self.information = kernel.GetFileInformationByHandle
+        self.information.argtypes = [wintypes.HANDLE, ctypes.POINTER(Information)]
+        self.information.restype = wintypes.BOOL
+        self.close = kernel.CloseHandle
+        self.close.argtypes = [wintypes.HANDLE]
+        self.close.restype = wintypes.BOOL
+
+    def open(self, path, directory=False):
+        # OPEN_REPARSE_POINT opens the link itself, so its attributes can be
+        # rejected before reading. No write/delete sharing keeps this object
+        # stable while its handle is held. Directory handles pin every ancestor.
+        flags = 0x00200000 | (0x02000000 if directory else 0)
+        handle = self.create('\\\\?\\' + str(path), 0x80 if directory else 0x80000000,
+                             1, None, 3, flags, None)
+        if handle == self.ctypes.c_void_p(-1).value:
+            raise self.ctypes.WinError(self.ctypes.get_last_error())
+        return handle
+
+    def info(self, handle):
+        info = self.Information()
+        if not self.information(handle, self.ctypes.byref(info)):
+            raise self.ctypes.WinError(self.ctypes.get_last_error())
+        require(not info.attributes & 0x400, 'LINK_OR_REPARSE_REFUSED')
+        return info
+
+    @staticmethod
+    def identity(info):
+        return (info.volume, info.index_high, info.index_low, info.links,
+                info.size_high, info.size_low, info.written.dwHighDateTime,
+                info.written.dwLowDateTime)
+
+    @contextlib.contextmanager
+    def directory(self, path):
+        path = absolute(str(path))
+        handles = []
+        try:
+            for parent in [*reversed(path.parents), path]:
+                handle = self.open(parent, directory=True)
+                handles.append(handle)
+                require(self.info(handle).attributes & 0x10, 'DIRECTORY_REQUIRED')
+            yield
+        finally:
+            for handle in reversed(handles):
+                self.close(handle)
+
+
+def read_windows_bytes(path):
+    import msvcrt
+    api = WindowsFiles()
+    try:
+        with api.directory(path.parent):
+            handle = api.open(path)
+            descriptor = None
+            try:
+                before = api.info(handle)
+                require(not before.attributes & 0x10, 'REGULAR_FILE_REQUIRED')
+                require(before.links == 1, 'HARDLINK_REFUSED')
+                size = (before.size_high << 32) | before.size_low
+                require(size <= MAX_FILE, 'SOURCE_TOO_LARGE')
+                descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+                with os.fdopen(descriptor, 'rb', closefd=False) as stream:
+                    data = stream.read(MAX_FILE + 1)
+                require(len(data) <= MAX_FILE, 'SOURCE_TOO_LARGE')
+                require(api.identity(before) == api.identity(api.info(handle)) and len(data) == size,
+                        'SOURCE_CHANGED_DURING_READ')
+                return data
+            finally:
+                if descriptor is None:
+                    api.close(handle)
+                else:
+                    os.close(descriptor)  # CRT descriptor owns the native handle.
+    except FileNotFoundError:
+        raise
+    except OSError:
+        raise EvidenceError('UNSAFE_OR_UNAVAILABLE_FILE') from None
 
 
 def open_dir(path):
@@ -58,6 +159,8 @@ def open_dir(path):
 
 
 def read_bytes(path):
+    if IS_WINDOWS:
+        return read_windows_bytes(path)
     parent = open_dir(path.parent)
     try:
         descriptor = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
@@ -65,13 +168,14 @@ def read_bytes(path):
         try:
             before = os.fstat(descriptor)
             require(stat.S_ISREG(before.st_mode), 'REGULAR_FILE_REQUIRED')
+            require(before.st_nlink == 1, 'HARDLINK_REFUSED')
             require(before.st_size <= MAX_FILE, 'SOURCE_TOO_LARGE')
             with os.fdopen(descriptor, 'rb', closefd=False) as stream:
                 data = stream.read(MAX_FILE + 1)
             after = os.fstat(descriptor)
             require(len(data) <= MAX_FILE, 'SOURCE_TOO_LARGE')
-            require((before.st_size, before.st_mtime_ns, before.st_ino) ==
-                    (after.st_size, after.st_mtime_ns, after.st_ino) and
+            require((before.st_dev, before.st_size, before.st_mtime_ns, before.st_ino, before.st_nlink) ==
+                    (after.st_dev, after.st_size, after.st_mtime_ns, after.st_ino, after.st_nlink) and
                     len(data) == after.st_size, 'SOURCE_CHANGED_DURING_READ')
             return data
         finally:
@@ -379,6 +483,8 @@ class Collector:
                     del tool[key]
 
     def archive(self, summary):
+        if IS_WINDOWS:
+            return self.archive_windows(summary)
         descriptor = open_dir(self.directory)
         try:
             for name in ('evidence-summary.json', 'evidence-archive'):
@@ -406,6 +512,39 @@ class Collector:
                        (json.dumps(summary, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8'))
         finally:
             os.close(descriptor)
+
+    def archive_windows(self, summary):
+        api = WindowsFiles()
+        with api.directory(self.directory):
+            for name in ('evidence-summary.json', 'evidence-archive'):
+                try:
+                    (self.directory / name).lstat()
+                except FileNotFoundError:
+                    continue
+                raise EvidenceError('EVIDENCE_ALREADY_EXISTS')
+            archive = self.directory / 'evidence-archive'
+            archive.mkdir(mode=0o700)
+            with api.directory(archive):
+                sources = archive / 'sources'
+                sources.mkdir(mode=0o700)
+                with api.directory(sources):
+                    for source in self.sources:
+                        self.write_windows(sources / Path(source['archive_path']).name,
+                                           self.data[source['path']][1])
+            self.write_windows(self.directory / 'evidence-summary.json',
+                               (json.dumps(summary, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8'))
+
+    @staticmethod
+    def write_windows(path, data):
+        # Every ancestor is held open without delete sharing by the caller.
+        # O_EXCL refuses an existing file, hardlink or reparse point at the leaf.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_BINARY, 0o600)
+        with os.fdopen(fd, 'wb') as stream:
+            require(stat.S_ISREG(os.fstat(stream.fileno()).st_mode), 'REGULAR_FILE_REQUIRED')
+            require(os.fstat(stream.fileno()).st_nlink == 1, 'HARDLINK_REFUSED')
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
 
     @staticmethod
     def write(descriptor, name, data):

@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -273,6 +274,61 @@ class CliEvidenceTests(unittest.TestCase):
         (run / "stdout.raw").rename(target)
         (run / "stdout.raw").symlink_to(target)
         self.rejected(run)
+
+    def test_hardlinked_source_is_refused(self):
+        run = self.run_dir()
+        os.link(run / "stdout.raw", self.root / "outside-hardlink")
+        self.assertEqual(self.rejected(run).code, "HARDLINK_REFUSED")
+        self.assertFalse((run / "evidence-summary.json").exists())
+
+    def test_source_limit_applies_before_archive(self):
+        run = self.run_dir(events=[self.gemini_call("source excerpt", True)])
+        with mock.patch.object(c, "MAX_FILE", 4):
+            self.assertEqual(self.rejected(run).code, "SOURCE_TOO_LARGE")
+        self.assertFalse((run / "evidence-summary.json").exists())
+
+    def test_ambiguous_paths_cannot_be_used_as_source_capabilities(self):
+        for suffix in ("name.", "name ", "name:stream"):
+            with self.subTest(suffix=suffix), self.assertRaises(c.EvidenceError):
+                c.absolute(str(self.root / suffix))
+
+    @unittest.skipUnless(os.name == "nt", "Windows directory handle semantics")
+    def test_windows_parent_is_pinned_until_guard_closes(self):
+        directory = self.root / "pinned-parent"
+        directory.mkdir()
+        with c.WindowsFiles().directory(directory):
+            with self.assertRaises(OSError):
+                directory.rename(self.root / "moved-parent")
+            # Pinning the parent must still permit exclusive creation within it.
+            c.Collector.write_windows(directory / "created.bin", b"fixture bytes")
+        self.assertEqual((directory / "created.bin").read_bytes(), b"fixture bytes")
+        directory.rename(self.root / "moved-parent")
+
+    @unittest.skipUnless(os.name == "nt", "Windows native reparse-point handling")
+    def test_windows_parent_symlink_is_refused(self):
+        real = self.root / "real-parent"
+        real.mkdir()
+        (real / "source.bin").write_bytes(b"PRIVATE OUTSIDE CONTENT")
+        link = self.root / "linked-parent"
+        link.symlink_to(real, target_is_directory=True)
+        with self.assertRaises(c.EvidenceError):
+            c.read_bytes(link / "source.bin")
+
+    @unittest.skipUnless(os.name == "nt", "Windows native file share semantics")
+    def test_windows_source_handle_prevents_write_and_delete(self):
+        source = self.root / "pinned-source.bin"
+        source.write_bytes(b"stable bytes")
+        api = c.WindowsFiles()
+        handle = api.open(source)
+        try:
+            self.assertEqual(api.info(handle).links, 1)
+            with self.assertRaises(OSError):
+                source.write_bytes(b"changed")
+            with self.assertRaises(OSError):
+                source.unlink()
+        finally:
+            api.close(handle)
+        self.assertEqual(c.read_bytes(source), b"stable bytes")
 
     def test_symlinked_native_transcript_is_refused(self):
         path = self.transcript("Source excerpt")

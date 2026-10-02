@@ -29,7 +29,7 @@ The runner requires native `.exe` files on Windows. A `.cmd`, `.bat` or PowerShe
 From either skill's package directory, after verifying both official executable paths:
 
 ```powershell
-py -3 scripts/create_runtime_profile.py --opus-executable "$claudeExe" --gemini-executable "$agyExe"
+py -3 -X utf8 scripts/create_runtime_profile.py --opus-executable "$claudeExe" --gemini-executable "$agyExe"
 ```
 
 This creates a private profile at `%USERPROFILE%\.config\codex-consultations\runtime.json`. Both skills use the same profile. The helper refuses to overwrite an existing file. If a previous profile belongs to another machine or an executable has moved, inspect and back it up before explicitly regenerating it; do not bypass a drift error by reusing a submitted request.
@@ -40,7 +40,7 @@ Claude web permissions are retained on each consultation. Antigravity requires t
 
 ## Validate before a real review
 
-Run the offline suite from each package directory, using the test folder shown in its README. These tests use synthetic local fixtures and do not call a model. Automated Windows checks establish helper behavior only, not the signed-in CLIs on your laptop.
+Run the offline suite from each package directory, using the test folder shown in its README. Use `py -3 -X utf8` instead of `python3` so UTF-8 fixtures also work on Windows installations with a legacy default encoding. These tests use synthetic local fixtures and do not call a model. Automated Windows checks establish helper behavior only, not the signed-in CLIs on your laptop.
 
 For the first live test, ask Codex to use the installed skill for a small non-sensitive review in an existing project. Include one public source lookup and page read when testing network access. Preserve the original answer and inspect `run.json` plus the actual native tool output. A configured web permission or a successful process exit alone does not prove source access or a complete review.
 

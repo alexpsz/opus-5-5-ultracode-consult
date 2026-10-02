@@ -143,6 +143,50 @@ class PreflightTests(unittest.TestCase):
         self.prompt.write_text('INPUT_MANIFEST: /one\nINPUT_MANIFEST: /two\n')
         self.assertEqual(self.check()['error_code'], 'AMBIGUOUS_DISPATCH_HEADER')
 
+    def test_crlf_manifest_retains_external_access_and_deny_checks(self):
+        image = self.root / 'external.png'; image.write_bytes(b'unchanged image')
+        self.manifest(image)
+        self.prompt.write_bytes(self.prompt.read_text().replace('\n', '\r\n').encode('utf-8'))
+        before = self.prompt.read_bytes()
+        result = self.check()
+        self.assertEqual(result['error_code'], 'INPUTS_OUTSIDE_PROJECT_NEED_STAGING')
+        self.assertEqual(result['input_manifest']['outside_project'], [str(image)])
+        self.settings.write_text(json.dumps({'permissions': {'allow': ['read_url(*)', 'read_file(*)'],
+                                                            'deny': ['read_file(' + str(image) + ')']}}))
+        self.assertEqual(self.check()['error_code'], 'INPUT_POLICY_BLOCKED')
+        self.assertEqual(self.prompt.read_bytes(), before)
+
+    def test_crlf_manifest_still_checks_manifest_and_input_bytes(self):
+        image = self.project / 'image.png'; image.write_bytes(b'actual image\r\n')
+        manifest = self.manifest(image)
+        self.prompt.write_bytes(self.prompt.read_text().replace('\n', '\r\n').encode('utf-8'))
+        result = self.check()
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['input_manifest']['status'], 'HASHES_VERIFIED_ACCESS_UNVERIFIED')
+        image.write_bytes(b'actual image\n')
+        self.assertEqual(self.check()['error_code'], 'INPUT_HASH_OR_SIZE_MISMATCH')
+        manifest.write_bytes(manifest.read_bytes() + b'\r\n')
+        self.assertEqual(self.check()['error_code'], 'INPUT_MANIFEST_HASH_MISMATCH')
+
+    def test_crlf_packet_hash_uses_original_bytes(self):
+        packet = self.project / 'packet.txt'; packet.write_bytes(b'evidence\r\nsecond line\r\n')
+        self.prompt.write_bytes(('PACKET: ' + str(packet) + '\r\nPACKET_SHA256: ' +
+                                 hashlib.sha256(packet.read_bytes()).hexdigest() + '\r\nReview.').encode('utf-8'))
+        result = self.check()
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['input_manifest']['packet']['bytes'], len(packet.read_bytes()))
+        packet.write_bytes(packet.read_bytes().replace(b'\r\n', b'\n'))
+        self.assertEqual(self.check()['error_code'], 'PACKET_HASH_MISMATCH')
+
+    def test_crlf_duplicate_and_empty_headers_fail_without_consuming_next_line(self):
+        self.prompt.write_bytes(b'INPUT_MANIFEST: /one\r\nINPUT_MANIFEST: /two\r\n')
+        self.assertEqual(self.check()['error_code'], 'AMBIGUOUS_DISPATCH_HEADER')
+        for ending in (b'\n', b'\r\n'):
+            for name in (b'PACKET', b'PACKET_SHA256', b'INPUT_MANIFEST', b'INPUT_MANIFEST_SHA256'):
+                with self.subTest(ending=ending, name=name):
+                    self.prompt.write_bytes(name + b': \t' + ending + b'Next-line is not a header value.')
+                    self.assertEqual(self.check()['error_code'], 'INVALID_DISPATCH_HEADER')
+
     def test_symlink_settings_rejected(self):
         raw = self.settings.read_bytes(); self.settings.unlink()
         target = self.root / 'target'; target.write_bytes(raw)
