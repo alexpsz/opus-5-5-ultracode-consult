@@ -74,7 +74,9 @@ class WindowsFiles:
         # rejected before reading. No write/delete sharing keeps this object
         # stable while its handle is held. Directory handles pin every ancestor.
         flags = 0x00200000 | (0x02000000 if directory else 0)
-        handle = self.create('\\\\?\\' + str(path), 0x80 if directory else 0x80000000,
+        # FILE_LIST_DIRECTORY participates in sharing checks; attributes-only
+        # access does not, so 0x80 alone cannot prevent a directory rename.
+        handle = self.create('\\\\?\\' + str(path), 0x81 if directory else 0x80000000,
                              1, None, 3, flags, None)
         if handle == self.ctypes.c_void_p(-1).value:
             raise self.ctypes.WinError(self.ctypes.get_last_error())
