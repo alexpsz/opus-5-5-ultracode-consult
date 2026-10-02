@@ -19,7 +19,7 @@ IDENTITY_FIELDS = ("request_id", "adviser", "input_manifest_sha256")
 
 
 class DeliveryError(Exception):
-    def __init__(self, code, *, dispatch_state=None):
+    def __init__(self, code, dispatch_state=None):
         self.code = code
         self.dispatch_state = dispatch_state
         super().__init__(code)
@@ -166,15 +166,39 @@ def validate_session(session):
             len(session["sentinel"]) <= 512, "INVALID_SESSION_SCHEMA")
     dispatch_state = session["dispatch_state"]
     require(isinstance(dispatch_state, str) and
-            dispatch_state in ("NOT_SENT", "UNKNOWN", "SENT"),
-            "INVALID_SESSION_SCHEMA")
+            dispatch_state in ("NOT_SENT", "UNKNOWN", "SENT"), "INVALID_SESSION_SCHEMA")
     if dispatch_state != "SENT":
-        # UNKNOWN may already have reached the adviser. Preserve that state;
-        # reporting NOT_SENT could cause an unsafe duplicate dispatch.
         code = "DISPATCH_UNKNOWN" if dispatch_state == "UNKNOWN" else "NOT_SENT"
         raise DeliveryError(code, dispatch_state=dispatch_state)
     require(session["generation_stopped"] is True, "GENERATION_NOT_STOPPED")
     require(session["unresolved_approval"] is False, "UNRESOLVED_APPROVAL")
+    # Older sessions can omit these observations; a string is never a boolean.
+    for field in ("input_access_verified", "controller_send_attempted", "submission_observed",
+                  "manual_send_handoff_pending", "ui_evidence_conflict"):
+        require(field not in session or type(session[field]) is bool, "INVALID_SESSION_SCHEMA")
+    if "input_access_status" in session:
+        access = session["input_access_status"]
+        require(isinstance(access, str) and access in
+                ("unknown", "partial", "verified", "unavailable"), "INVALID_SESSION_SCHEMA")
+        require(session.get("input_access_verified") is (access == "verified"),
+                "INVALID_SESSION_SCHEMA")
+    require(session.get("ui_evidence_conflict") is not True, "UI_EVIDENCE_CONFLICT")
+    if "controller_state" in session:
+        controller = session["controller_state"]
+        require(isinstance(controller, dict) and type(controller.get("version")) is int and
+                controller["version"] == 1 and isinstance(controller.get("current"), dict),
+                "INVALID_SESSION_SCHEMA")
+        current = controller["current"]
+        for field in ("dispatch_state", "generation_stopped", "unresolved_approval",
+                      "input_access_verified", "input_access_status", "ui_evidence_conflict",
+                      "submission_observed", "conversation_locator", "controller_send_attempted"):
+            require((field in current) == (field in session) and
+                    type(current.get(field)) is type(session.get(field)) and
+                    current.get(field) == session.get(field), "STATE_MIRROR_MISMATCH")
+        require(session.get("submission_observed") is True and
+                _nonempty(session.get("conversation_locator")), "SUBMISSION_EVIDENCE_REQUIRED")
+    elif "submission_observed" in session:
+        require(session["submission_observed"] is True, "SUBMISSION_EVIDENCE_REQUIRED")
     require(type(session.get("findings_required", False)) is bool,
             "INVALID_SESSION_SCHEMA")
     if session["schema_version"] == 2:
@@ -279,6 +303,13 @@ def read_named(directory, names):
     return result
 
 
+def _path_key(path):
+    # Conservative on every host: macOS commonly uses case-insensitive APFS,
+    # while Python's POSIX path equality is case-sensitive. Do not let a
+    # differently cased controller path alias an adviser output.
+    return str(path).casefold()
+
+
 def _receipt_core(files, session):
     return {
         "schema_version": session["schema_version"],
@@ -295,13 +326,14 @@ def _encode_json(value):
     return (json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n").encode("utf-8")
 
 
-def freeze(files, session, snapshot):
+def freeze(files, session, snapshot, marker="receipt.json"):
     _check_chain(snapshot, allow_missing_leaf=True)
     core = _receipt_core(files, session)
+    allowed = set(files) | {marker}
     if snapshot.exists():
-        frozen = read_set(snapshot, DELIVERABLES | {"receipt.json"})
-        require("receipt.json" in frozen, "PARTIAL_SNAPSHOT")
-        receipt = parse_json(frozen.pop("receipt.json"))
+        frozen = read_set(snapshot, allowed)
+        require(marker in frozen, "PARTIAL_SNAPSHOT")
+        receipt = parse_json(frozen.pop(marker))
         captured_at = receipt.pop("captured_at_utc", None)
         require(isinstance(captured_at, str) and
                 re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z", captured_at),
@@ -319,19 +351,19 @@ def freeze(files, session, snapshot):
                 os.fsync(stream.fileno())
         receipt = {**core, "captured_at_utc": dt.datetime.now(dt.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%S.%fZ")}
-        with (snapshot / "receipt.json").open("xb") as stream:
+        with (snapshot / marker).open("xb") as stream:
             stream.write(_encode_json(receipt))
             stream.flush()
             os.fsync(stream.fileno())
-        saved = read_set(snapshot, DELIVERABLES | {"receipt.json"})
-        require(saved.pop("receipt.json") == _encode_json(receipt) and saved == files,
+        saved = read_set(snapshot, allowed)
+        require(saved.pop(marker) == _encode_json(receipt) and saved == files,
                 "SNAPSHOT_WRITE_MISMATCH")
     except OSError:
         raise DeliveryError("SNAPSHOT_WRITE_FAILED_PARTIAL") from None
     return "CREATED"
 
 
-def save_receipt(files, session, receipt_path):
+def save_receipt(files, session, receipt_path, check_only=False):
     """Create-only integrity receipt; an identical retry never rewrites it."""
     _check_chain(receipt_path, allow_missing_leaf=True)
     core = _receipt_core(files, session)
@@ -343,6 +375,8 @@ def save_receipt(files, session, receipt_path):
                 "INVALID_RECEIPT")
         require(receipt == core, "RECEIPT_CONFLICT")
         return "RECOVERED_IDENTICAL"
+    if check_only:
+        return "ABSENT"
     receipt = {**core, "captured_at_utc": dt.datetime.now(dt.timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%S.%fZ")}
     encoded = _encode_json(receipt)
@@ -354,7 +388,7 @@ def save_receipt(files, session, receipt_path):
     return "CREATED"
 
 
-def collect(session_path, snapshot_dir=None, stable_seconds=1, receipt_file=None):
+def collect(session_path, snapshot_dir=None, stable_seconds=1, receipt_file=None, archive_dir=None):
     require(isinstance(stable_seconds, (int, float)) and not isinstance(stable_seconds, bool)
             and math.isfinite(stable_seconds) and 0 <= stable_seconds <= 10,
             "INVALID_STABILITY_INTERVAL")
@@ -373,20 +407,33 @@ def collect(session_path, snapshot_dir=None, stable_seconds=1, receipt_file=None
         _check_chain(receipt, allow_missing_leaf=True)
         receipt = receipt.resolve(strict=False)
         names = delivery_names(session)
-        selected = {output / name for name in names.values() if name is not None}
-        require(session_path not in selected and receipt not in selected and
-                receipt != session_path, "CONTROLLER_PATH_OVERLAP")
+        selected = {_path_key(output / name) for name in names.values() if name is not None}
+        require(_path_key(session_path) not in selected and _path_key(receipt) not in selected and
+                _path_key(receipt) != _path_key(session_path), "CONTROLLER_PATH_OVERLAP")
+        archive = _absolute(str(archive_dir) if archive_dir is not None else str(receipt) + ".archive")
+        _check_chain(archive, allow_missing_leaf=True)
+        archive = archive.resolve(strict=False)
+        # Shared output directories are allowed; the archive must not contain
+        # or alias any controller file or named adviser output.
+        archive_key = _path_key(archive)
+        protected = selected | {_path_key(session_path), _path_key(receipt), _path_key(output)}
+        require(all(key != archive_key and not key.startswith(archive_key + os.sep)
+                    for key in protected), "ARCHIVE_PATH_OVERLAP")
         first = read_named(output, names)
         time.sleep(stable_seconds)
         second = read_named(output, names)
         require(first == second, "DELIVERY_CHANGED_DURING_STABILITY")
         require(read_file(session_path) == session_bytes, "SESSION_CHANGED")
         validate_delivery(second, session)
+        save_receipt(second, session, receipt, check_only=True)
+        archive_action = freeze(second, session, archive, marker=".archive-receipt.json")
         action = save_receipt(second, session, receipt)
         return {"status": "PASS", "scope": "protocol_only", "receipt_action": action,
+                "archive_action": archive_action, "archive_directory": str(archive),
                 **{key: session[key] for key in IDENTITY_FIELDS},
                 "file_count": len(second), "evidence_status": "adviser_claims_unverified"}
-    require(snapshot_dir is not None and receipt_file is None, "V1_SNAPSHOT_REQUIRED")
+    require(snapshot_dir is not None and receipt_file is None and archive_dir is None,
+            "V1_SNAPSHOT_REQUIRED")
     snapshot = _absolute(str(snapshot_dir))
     _check_chain(snapshot, allow_missing_leaf=True)
     # Resolve existing paths only after refusing links/reparse points. On
@@ -412,13 +459,15 @@ def main(argv=None):
     parser.add_argument("--session", required=True)
     parser.add_argument("--snapshot-dir")
     parser.add_argument("--receipt-file")
+    parser.add_argument("--archive-dir", help="schema 2 archive; default: <receipt-file>.archive")
     parser.add_argument("--stable-seconds", type=float, default=1)
     args = parser.parse_args(argv)
     try:
-        result = collect(args.session, args.snapshot_dir, args.stable_seconds, args.receipt_file)
+        result = collect(args.session, args.snapshot_dir, args.stable_seconds, args.receipt_file,
+                         args.archive_dir)
     except DeliveryError as exc:
         result = {"status": "FAIL", "code": exc.code, "scope": "protocol_only"}
-        if exc.dispatch_state is not None:
+        if exc.dispatch_state in ("NOT_SENT", "UNKNOWN", "SENT"):
             result["dispatch_state"] = exc.dispatch_state
         print(json.dumps(result))
         return 2

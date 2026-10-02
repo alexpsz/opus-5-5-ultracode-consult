@@ -128,7 +128,7 @@ public_key = "sample public data"
             self.assertTrue(scanner.scan_text(line, "packet.md"))
 
     def test_missing_file_and_invalid_utf8(self):
-        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+        with tempfile.TemporaryDirectory() as directory:
             missing = Path(directory) / "missing.md"
             code, payload, _ = self.run_cli([str(missing)])
             self.assertEqual(code, 2)
@@ -147,7 +147,7 @@ public_key = "sample public data"
         self.assertNotIn(b"sensitive prefix", raw)
 
     def test_multiple_files_and_stdin_are_all_checked(self):
-        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+        with tempfile.TemporaryDirectory() as directory:
             first, second = Path(directory) / "first.md", Path(directory) / "second.md"
             first.write_text("api_key=${KEY}", encoding="utf-8")
             second.write_text("safe UTF-8: 中文", encoding="utf-8-sig")

@@ -12,7 +12,7 @@ import collect_delivery as collector
 
 class DeliveryTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
+        self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         # macOS may expose its system temp directory through /var -> /private/var.
         # Canonicalize this controller-created fixture before constructing paths;

@@ -1,58 +1,56 @@
-# Native workflow and bounded recovery
+# Native fallback and existing-session recovery
 
-## Choose the host interface
+This reference applies to explicitly chosen native Desktop Code consultations, requests proven unsent before selecting native fallback, and existing native `SENT`/`UNKNOWN` conversations. New consultations otherwise use [official CLI workflow](cli-workflow.md). A CLI timeout, model mismatch or incomplete answer does not permit an automatic native resend. No CUA step is required for CLI collection.
 
-Discover the computer-control tools actually available in this session and read their current documentation. Do not vendor another tool's implementation or rely on a fixed installed skill version. Native Claude Code remains the destination on every platform.
+## Reuse before probing
 
-| Host | Route | Verification status of this release |
-| --- | --- | --- |
-| Windows | Host-supported native computer tools. Where the installed Computer Use documentation exposes `node_repl` with `@oai/sky`, use only the documented calls. | Offline Python checks executed; full consultation was not rerun for this release. |
-| macOS | Host-supported native macOS computer tools, after reading their own documentation and required permissions. | Workflow designed for this route; native end-to-end run not performed. |
-| Linux | Use native control only if both the host and installed destination actually support it. | No native compatibility claim; offline helpers are portable Python. |
+Read the current host's native-control documentation. Windows and macOS APIs differ; use only calls actually exposed here. No supported native route means preserve the packet and report the limitation. Do not install a bridge or switch a sent/ambiguous request to CLI, browser chat or API.
 
-A browser tool saying “native APIs disabled” does not establish that a separately installed native tool is unavailable. Conversely, the presence of a skill file does not prove a working native tool. If none is callable, stop native actions, keep the packet and state the missing capability. Do not install tools or change OS/app security settings as an implicit recovery.
+Reuse the existing app handle, project and conversation. Validate capability through the next necessary action and its result; avoid a separate click-test tour. Prefer current semantic elements, with coordinates only from a fresh screenshot. Refresh the affected state after meaningful changes. Do not take a full screenshot, reacquire the app or reopen model pickers after every focus change.
 
-## Observe, act, observe
+A completed click/setValue is not proof of selection or typing. Check the resulting label or composer text. Use AX text for routine checks; if AX and pixels disagree, acquire one fresh matched observation of the same conversation. Do not combine an old AX “finished” with a newer screenshot showing “Working.” Unresolved conflict means completion remains unverified.
 
-Select the existing Claude window and Code workspace from current native state. Preserve other tasks and drafts. Use semantic elements when exposed; use coordinates only from a fresh screenshot. Refresh after navigation, opening a menu, changing model/effort, focusing the composer or submitting. Accessibility text can lag behind a screenshot; resolve a mismatch with one new observation before acting.
+## Project and model
 
-Use a new conversation only when this request is definitely `NOT_SENT`. Reuse the verified existing project root. Inspect Local versus cloud/remote execution, branch/worktree and extra workspace roots if the app exposes them; record fields not exposed as unknown. Never change branches or create a worktree to simplify consultation.
+Reuse the owning checkout; do not create a worktree, switch branches or clone for consultation. Prefer a visible absolute project path; allow one alternative native check. Record Local/remote context and extra roots when exposed, otherwise unknown.
 
-## Bind the right project without UI loops
+If only the project basename is visible, use the selected exact root, an unambiguous matching native project and a uniquely identified packet at that absolute path. The dispatch requires reading that packet first, stopping on access failure. An observed read plus a marker absent from the dispatch and a content-specific fact can corroborate access. Label it **content-corroborated; absolute native root not shown**. This is not proof of all workspace configuration or a strict pre-analysis handshake; record when evidence actually became available. Ambiguous duplicate projects need exact binding; implicit workspace-wide context needs more than packet access.
 
-The controller records the owning root with ordinary filesystem tools. Resolve an intentionally selected path once and inspect whether it identifies a different checkout; do not accept a symlink destination merely because it has a similar name.
+Confirm selected `Opus 5.5` and labelled `Ultracode`, not merely available menu entries. If the UI separates Ultracode and effort, set and record the numeric effort requested by the frozen wrapper; the new CLI-equivalent wrapper requests `xhigh`. Existing native requests retain their original target. Ultracode alone does not establish maximum model effort. Preserve that evidence across focus changes; invalidate it after project, conversation, execution context or setting changes. An ineffective selector uses the shared recovery budget below. An unavailable control does not prove the model absent. No silent substitution.
 
-Prefer either a folder-picker description or existing project settings showing the full path. One direct check and, if necessary, one alternative native check is enough. Do not repeatedly open Explorer/Finder or search unrelated folders for stronger evidence.
+## One UI owner, independent progress
 
-If only a basename is visible, all of the following permit a bounded fallback:
+Use one UI owner across advisers and monitoring. Keep each short action/observation transaction on one app; separate cross-app calls so partial failures are attributable. File preparation, hashing and report checks can run concurrently. Send a ready route while another awaits setup or approval.
 
-1. The user or artifact context has selected one exact local root; no competing duplicate is apparent.
-2. The native workspace visibly matches that project and the intended Local/remote context.
-3. The controller has created a uniquely named packet inside the selected root, with a fresh random identity marker and recorded hash.
-4. The submitted dispatch requires reading that exact absolute packet path first and reporting the marker and a content-specific fact. It requires stopping with a binding/access limitation before examining other files if the first read fails.
+While generating, inspect exact completion paths after about 30 seconds, then back off to 60 seconds if unchanged. About once per minute, check the same conversation for progress or approvals; check sooner on completion-file change or a user signal. Do not continually refocus apps or reread full transcripts. Unchanged monitoring stays quiet; report meaningful changes and required actions. Each wait should permit interruption within 60 seconds.
 
-Before submission label this `content corroboration pending`. After an observed native read or a checkable response, label it `content-corroborated; absolute native root not shown`. This confirms access to the intended packet, not an otherwise invisible workspace configuration. If a task requires implicit workspace-wide context, this fallback is insufficient; supply bounded contents or obtain the precise native root.
+## One recovery, then one handoff
 
-Never expose a real token as the identity marker. This is a non-secret random string that only identifies the packet. Model echo of a path, project title or hash supplied in the dispatch alone does not corroborate access.
+Persist the stage, observation time/locator, actual control result, pending approval, and recovery attempts for this conversation and native capability. A control that returns success without effect counts as an unsuccessful action. Share one recovery budget across model, project and composer controls; do not restart it after compaction or for each new selector.
 
-## Verify model and effort
+After an ineffective action, reacquire the target and observe once, then retry the necessary action once. If still ineffective, stop automated mutations and make one consolidated handoff covering the remaining project/model/composer steps. Retain read-only monitoring. A relevant user or environment change may justify a new attempt; record why, and use the next necessary action rather than assuming all controls recovered.
 
-Open the current model picker. Confirm its selected option is `Opus 5.5`, not a menu entry that is merely available. Then inspect effort and select the labelled `Ultracode` option. A slider must show that label; do not infer it from its numeric maximum. Read back both selections immediately before dispatch. New conversations can reset effort.
+Preserve existing authorization. An unresolved real permission prompt follows the host's confirmation rules; completed trust/registration is not asked again. Never change security presets to recover. A human cancellation/Escape stops native actions until the user authorizes continuing.
 
-Target labels are account- and version-dependent. If a selector or exact option is absent, reopen once and record the observed options. A login error, expired session or control failure is not proof of model absence. Do not substitute Extra, another Opus generation, Sonnet, a browser chat, CLI or API without explicit user direction.
+For manual sending, provide the exact frozen dispatch and destination, ask for one send, and persist `UNKNOWN`, handoff pending, and whether the controller attempted Send **before** making the handoff actionable. Update each adviser independently. Inspect that same submitted turn, then set `SENT`; user confirmation alone is not UI verification. Record any difference between submitted text and frozen dispatch, distinguishing incomplete extraction from confirmed edits. Preserve ID/sentinel and inspect scope-critical clauses; do not resend to repair evidence. Where full text cannot be recovered, state that fidelity limit.
 
-## Composer and submission
+## Collection
 
-Click the observed prompt, refresh, confirm focus, type the short dispatch and read it back in full. Never type into a terminal, source editor, search box or uncertain focus. If file mentions are available, select only the allowed inputs. The dispatch and packet define reads precisely; project binding alone is not permission to read other reports.
+A native completion file triggers UI verification, not automatic acceptance. Preserve complete native files, or the same original answer through supported export/full UI text if writes failed. No hidden databases, terminal/HTTP/CDP bridge, intermediary AI or rewrite-as-export. The official CLI route is a separate authorized workflow, not a bridge for this native conversation. One collection recovery is enough; retain partial evidence if unresolved.
 
-Store `UNKNOWN` before Send, click once and observe the submitted user turn before storing `SENT`. If a tool errors, recover the same conversation and inspect before deciding anything. Never create a duplicate request after `UNKNOWN`.
+## Native checkpoint helper
 
-If the user stops computer control, including a host-reported user cancellation or Escape stop, stop native actions and checkpoint the existing dispatch state. Do not treat a human stop as a transient failure to retry. Resume native interaction only after the user authorizes continuing; a cancelled Send remains UNKNOWN until the same conversation can be inspected.
+These session files belong to native delivery. Do not pass a CLI runner's `run.json` to this helper.
 
-If an actual permission prompt appears, apply the host's confirmation rules and existing user authorization. Do not change permission presets, disable checks or retry an expired app approval indefinitely. Continue independent local preparation and accurately report a remaining blocker.
+Use canonical absolute paths and the available Python executable:
 
-## Collection and recovery
+```text
+python3 scripts/consult_state.py inspect --session /canonical/a.session.json --session /canonical/b.session.json
+python3 scripts/consult_state.py update --session /canonical/a.session.json --event-file /canonical/event.json
+```
 
-Poll the named completion file, then check the same conversation for stopped generation and pending requests. A file or toast by itself is insufficient. Read and preserve the complete report; validate it with the local collector. Do not have the adviser hash its own result as a substitute for controller validation.
+`inspect` reads sessions and stats only their exact completion files; it returns session hash, dispatch/phase, due/action and legacy status. Optional `--now` accepts a timezone-aware ISO timestamp. It neither reads reports nor proves completion.
 
-If native files are unavailable, supported export or full native UI text from the same answer is the fallback. Do not inspect hidden conversation databases or use a terminal/HTTP/CDP bridge to obtain it. One bounded collection recovery is enough; preserve a partial result and label it incomplete if the full answer remains unavailable.
+For `update`, event JSON contains `expected_sha256` from inspect, unique `event_id`, timezone-aware `observed_at` and `current`. Add `migrate_legacy: true` only for explicit first migration. `current` replaces the whole current observation, not selected keys; preserve still-valid evidence and clear resolved blockers. The helper stores `controller_state` version 1 with current/history and synchronized top-level fields. On a hash conflict, inspect again rather than overwrite.
+
+Required current fields: `phase`, `dispatch_state`, `generation_stopped`, `unresolved_approval`, boolean `input_access_verified`, and `input_access_status` (`unknown`, `partial`, `verified`, `unavailable`). True access verification requires status `verified`. Optional fields include `recovery_count`, `next_check_at`, `blocker`, `conversation_locator`, `controller_send_attempted`, `submission_observed`, `ui_evidence_conflict`, and `evidence` entries scoped to this adviser/session/time/source. `manual_handoff` requires UNKNOWN and no controller Send; SENT requires submission observed and its locator. UI conflict forbids stopped=true. Recovery counts and dispatch state cannot regress. Retain model/effort observations in evidence; do not convert partial reads to true.

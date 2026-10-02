@@ -1,4 +1,4 @@
 interface:
   display_name: "Opus 5.5 Ultracode Consult"
-  short_description: "Native Claude review with verified model and evidence"
-  default_prompt: "Use $opus-5-5-ultracode-consult to obtain an independent review in this project's Claude desktop Code workspace, verify the exact model and effort, and collect the complete report."
+  short_description: "Claude Code CLI review with original evidence retained"
+  default_prompt: "Use $opus-5-5-ultracode-consult to obtain an independent review through official Claude Code CLI, preserve the normal harness and original answer, and distinguish requested settings from observed runtime evidence."

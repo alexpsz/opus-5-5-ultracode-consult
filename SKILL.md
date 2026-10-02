@@ -1,59 +1,43 @@
 ---
 name: opus-5-5-ultracode-consult
-description: Obtain an independent project or artifact review from the exact Opus 5.5 and Ultracode selections in Claude desktop Code, using the host's supported native computer tools and shared project files. Use for this requested second opinion, not Claude API or terminal automation.
+description: Obtain an independent Opus 5.5 review with Ultracode through official Claude Code CLI, preserving the full harness and original answer; recover existing native consultations in their original conversation.
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.4.0"
 ---
 
 # Opus 5.5 Ultracode Consult
 
-Requirements: a signed-in Claude desktop Code workspace, the exact requested model and effort in its current picker, and host-supported native computer control. Offline helpers require Python 3.10+. macOS native interaction is not yet end-to-end verified.
+Obtain one independent answer through the official Claude Code CLI, preserve the original, and verify material claims locally. New consultations default to CLI with the normal project/account harness. Requires Claude Code, its own valid authentication, the requested model configuration, and Python 3.10+ for helpers. Native Desktop Code remains available for explicitly requested native work and recovery of existing native consultations.
 
-Obtain one independent answer, preserve the complete original, then verify its claims locally. The target names describe what to select; they are not a promise that a particular account or current product offers those options.
+Relevant public web search and page reading are part of ordinary consultation; the user need not request them separately each time. Use them when they help resolve the question, cite the sources actually accessed, and obey an explicit offline or narrower scope. This default does not authorize web interaction, publication or unrelated disclosure.
 
-An explicit consultation request authorizes sending its question and necessary evidence to Claude, and writing the named report files in the owning project. It does not authorize unrelated uploads, product edits, terminal execution by the adviser, installs, commits, publication, or security changes. Apply the user's existing scope without asking again for the same authorized send or report write. Automatic skill discovery alone is not permission to transmit private material: establish that the user requested this consultation before dispatch.
+A user-requested consultation authorizes necessary evidence transfer and controller capture of the answer. Reuse existing authorization, including completed project trust. Skill discovery alone does not authorize transmission. Running the official CLI as transport does not authorize the adviser to run shell commands, edit products, install software, upload unrelated material, publish or change security settings. Native report writes require the exact named output paths.
 
-## Host and target
+## Resume or prepare
 
-Read [native workflow](references/native-workflow.md) and the currently available host's computer-use documentation before native actions. Use that host's supported interface. Windows `@oai/sky` and macOS computer APIs are different interfaces; never copy one platform's calls into the other. If native control is unavailable, prepare the packet and report that limitation. Do not silently switch to a browser, CLI, API, hidden application data, or a different model.
+Start with the request's existing route and artifacts. For CLI, inspect its `run.json` and raw output; for native sessions, use `scripts/consult_state.py inspect --session /canonical/session.json`. These are different schemas. Reuse the request ID, frozen packet, conversation and valid observations. `SENT` and `UNKNOWN` stay on the original route and conversation; a timeout, failed collection or missing model field never authorizes resending or switching channels. Only a definitely unsent request can start a replacement route.
 
-Verify the selected model **Opus 5.5** and selected effort **Ultracode** in the current conversation immediately before Send. A subscription badge, an unlabelled maximum slider, or a prior session's setting does not prove either. Inspect once, select if available, and reopen once if the state is unclear. If still unresolved, retain the packet and report the observed blocker.
+For new or changed evidence, read [packet and dispatch](references/context-packet-template.md). Use the owning project and applicable instructions; record its root, revision and dirty state once. Keep a common neutral packet and exact input allowlist, distinct output names and one writer per output. Exclude other advisers' opinions and local preferred answers; record unavoidable project or conversation exposure. A fresh chat alone is not a blind review.
 
-## Project and neutral evidence
+Scan the outgoing packet and selected text with `scripts/check_packet_safety.py`; manually check screenshots, personal information and private URLs. Redact outgoing copies, not sources. A scanner pass is only a credential heuristic.
 
-Use the user's chosen project root or the project that owns the artifact. Read its applicable instructions. Record root, branch, HEAD and dirty state with ordinary file tools when it is a Git repository; never initialize, clean, switch branch or copy a repository just for consultation.
+## Operate and dispatch
 
-Reuse the existing native project. Prefer its visible absolute folder path as binding evidence. If the UI only shows a basename, use the bounded corroboration route in the native workflow: the explicitly chosen root, matching native project, and an actual read of a fresh uniquely identified packet at that exact path. Record this as **content-corroborated**, not as a UI-confirmed absolute path. Do not loop through file managers merely to improve the label. Ambiguous duplicate projects or failed exact-file access remain blockers to relying on repository context.
+Read [CLI workflow](references/cli-workflow.md) for new consultations. Use the single-shot runner with `claude-opus-5-5` and `ultracode`; preserve ordinary skills, plugins, MCP, instructions and workflows. Preapprove `WebSearch` and `WebFetch` with `--allowedTools` while retaining `dontAsk`; this grants those tools permission without restricting the available tool inventory. Do not use a bare/minimal mode, `--tools` restriction or blanket permission bypass. Keep explicit deny/ask and managed rules; other harness capabilities may still require approval. `dontAsk` is not a read-only sandbox.
 
-Use [packet template](references/context-packet-template.md) for a shared neutral packet, bounded input manifest, and short dispatch. Put new review files in the project's existing review location, ordinarily `docs/reviews`. Do not create one workspace or folder per model. Give each adviser different output filenames and one writer per output.
+Separate requested configuration from runtime evidence. On current Claude Code, `--effort ultracode` requests `xhigh` plus the Ultracode workflow setting, not maximum reasoning. If native metadata omits effective effort or workflow state, report those as unverified; the model's prose cannot fill the gap. Do not substitute a different target.
 
-Include actual artifacts, traceable facts, counterevidence, unknowns and the user's decision. Exclude the controller's preferred answer, rankings, prior model verdicts and other advisers' reports from the first review. Preserve an artifact's own rationale. Record unavoidable project rules, memory, open-buffer and prior-conversation exposure; a fresh chat alone does not prove independence.
+Prepare evidence and inspect files in parallel; dispatch each ready adviser without waiting for blocked routes. The runner freezes one request in one predetermined run directory and records `UNKNOWN` before launching. Its guard must not be bypassed with another directory or request ID.
 
-Project selection is access permission, not evidence of reading. Require visible reads or content-specific references for essential inputs. When an input is missing, provide its approved contents or limit the result explicitly. Distinguish saved files from unsaved buffers.
+Use [native workflow](references/native-workflow.md) only for an explicitly selected native route or a CLI request proven `NOT_SENT`. Preserve existing native `SENT`/`UNKNOWN` conversations. One controller owns UI actions, with one shared recovery attempt and consolidated manual handoff. No CUA is needed for ordinary CLI operation.
 
-Inspect the exact outgoing text and scan it offline:
+Read [runtime checks and recovery](references/runtime-recovery.md) before dispatch or continuation. Every runner launch checks default web policy and declared input hashes; prepare Gemini evidence inside the owning project or reuse exact existing read grants. Reuse matching local setup observations, use one visible terminal for required login, and classify host, authentication, model and tool-permission failures separately. Use the bundled `--continue-from` only for an authorized new follow-up, preserving web defaults and the recorded native session. Watch live receipt phases; collect access evidence offline after completion.
 
-```text
-python3 scripts/check_packet_safety.py /absolute/path/to/packet.md /absolute/path/to/selected-text.txt
-```
+## Collect and conclude
 
-Use the host's available Python executable on Windows. The scanner is a credential heuristic; manually check personal information, private URLs and screenshots too. Redact outgoing copies without changing source evidence. Do not upload a whole repository or raw media by default.
+Read [delivery protocol](references/delivery-protocol.md). CLI collection retains raw output and the exact native final text; native collection retains adviser-written files or the original UI answer. Neither route may fabricate a model-written completion record. Delivery integrity, target verification, input access and factual accuracy are separate. Recover the same answer once if incomplete; do not request a reconstruction.
 
-## Send once and collect
+Report route, requested and observed model/effort/workflow, project binding, exposure, dispatch and collection status, material uncertainty, and locally supported findings. A focused follow-up has its own ID and is not another independent first review. Keep CLI probe success, helper tests, assisted native delivery and full review acceptance distinct.
 
-Use [delivery protocol](references/delivery-protocol.md). Prefer native file reads and a complete first answer written directly to the named report, followed by completion JSON. Send a short dispatch pointing to those files, not a large pasted duplicate. If native file capability is unavailable before Send, use approved inline evidence and same-chat export.
-
-Observe and focus the actual composer, enter the dispatch, and read back its complete text, request ID, permitted paths and sentinel. Verify selected project, Local/remote context, model, effort and attachments. Serialize native UI actions when consulting several apps.
-
-Persist `NOT_SENT`; immediately before the single Send action persist `UNKNOWN`; set `SENT` only after seeing this request as a submitted user turn. A failed click can still submit. Recover `SENT` or `UNKNOWN` in the same conversation; never resend to obtain certainty. Preserve unrelated drafts and runs.
-
-Wait in bounded intervals and inspect completion locally. Accept a consultation only after generation visibly stops, no unresolved approval/tool request remains, the full answer is collected, and its final nonempty line is the exact unique `OPUS55_ULTRACODE_RESULT_<request-id>_<nonce>` sentinel. Validate named files with the collector and its create-only receipt. A completion marker, notification, filename echo or matching hash alone does not establish reading or factual accuracy.
-
-If collection is truncated, reacquire the same answer once using supported export or UI text; otherwise report incomplete. Never ask for a reconstruction as an export, route content through another AI composer, or change security settings to unblock collection. Keep the original request ID and sentinel when recovering a prior run.
-
-## Local conclusion
-
-Preserve the first answer before introducing local views. Verify material claims against source evidence and decide what to adopt. A focused follow-up may resolve a consequential gap, with its own identifier; it is not another independent review.
-
-Report the requested and observed model/effort, host/app, project binding method and revision, conversation locator, dispatch state, collection/protocol status, recommendation, material uncertainty and local adoption decision. Keep package tests, native UI checks and actual end-to-end consultation status separate. No report or model agreement expands the user's execution authority.
+On native Windows, follow [Windows CLI setup](references/windows-setup.md) before the first dispatch. Generate a machine-local profile; never reuse a macOS profile or another user’s credentials.
