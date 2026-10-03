@@ -1,14 +1,14 @@
 ---
 name: opus-5-5-ultracode-consult
-description: Obtain an independent Opus 5.5 review with Ultracode through official Claude Code CLI, preserving the full harness and original answer; recover existing native consultations in their original conversation.
+description: Obtain an independent Opus 5.5 review with Ultracode through a connected official browser client or Claude Code CLI, preserving the full harness and original answer; recover existing consultations in their original conversation.
 license: MIT
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Opus 5.5 Ultracode Consult
 
-Obtain one independent answer through the official Claude Code CLI, preserve the original, and verify material claims locally. New consultations default to CLI with the normal project/account harness. Requires Claude Code, its own valid authentication, the requested model configuration, and Python 3.10+ for helpers. Native Desktop Code remains available for explicitly requested native work and recovery of existing native consultations.
+Obtain one independent answer, preserve the original, and verify material claims locally. For interactive consultations, prefer the signed-in official browser client connected to the intended local machine/project. Use CLI for explicit CLI requests, background concurrency, precise parameter control or automated raw-output collection. Preserve the normal project/account harness on either route. Browser availability alone does not prove local execution, equivalent tools or matching skills/plugins. Native Desktop Code remains available when selected and for existing-session recovery. CLI helpers require Python 3.10+.
 
 Relevant public web search and page reading are part of ordinary consultation; the user need not request them separately each time. Use them when they help resolve the question, cite the sources actually accessed, and obey an explicit offline or narrower scope. This default does not authorize web interaction, publication or unrelated disclosure.
 
@@ -24,15 +24,15 @@ Scan the outgoing packet and selected text with `scripts/check_packet_safety.py`
 
 ## Operate and dispatch
 
-Read [CLI workflow](references/cli-workflow.md) for new consultations. Use the single-shot runner with `claude-opus-5-5` and `ultracode`; preserve ordinary skills, plugins, MCP, instructions and workflows. Preapprove `WebSearch` and `WebFetch` with `--allowedTools` while retaining `dontAsk`; this grants those tools permission without restricting the available tool inventory. Do not use a bare/minimal mode, `--tools` restriction or blanket permission bypass. Keep explicit deny/ask and managed rules; other harness capabilities may still require approval. `dontAsk` is not a read-only sandbox.
+Read [browser workflow](references/browser-workflow.md) for interactive browser consultations. Keep the Opus 5.5 plus Ultracode target; a UI exposing only High does not verify Ultracode. Before sending, use CLI or obtain an explicit alternative target when the required browser controls are unavailable. For CLI consultations, read [CLI workflow](references/cli-workflow.md). Use the single-shot runner with `claude-opus-5-5` and `ultracode`; preserve ordinary skills, plugins, MCP, instructions and workflows. Preapprove `WebSearch` and `WebFetch` with `--allowedTools` while retaining `dontAsk`; this grants those tools permission without restricting the available tool inventory. Do not use a bare/minimal mode, `--tools` restriction or blanket permission bypass. Keep explicit deny/ask and managed rules; other harness capabilities may still require approval. `dontAsk` is not a read-only sandbox.
 
 Separate requested configuration from runtime evidence. On current Claude Code, `--effort ultracode` requests `xhigh` plus the Ultracode workflow setting, not maximum reasoning. If native metadata omits effective effort or workflow state, report those as unverified; the model's prose cannot fill the gap. Do not substitute a different target.
 
 Prepare evidence and inspect files in parallel; dispatch each ready adviser without waiting for blocked routes. The runner freezes one request in one predetermined run directory and records `UNKNOWN` before launching. Its guard must not be bypassed with another directory or request ID.
 
-Use [native workflow](references/native-workflow.md) only for an explicitly selected native route or a CLI request proven `NOT_SENT`. Preserve existing native `SENT`/`UNKNOWN` conversations. One controller owns UI actions, with one shared recovery attempt and consolidated manual handoff. No CUA is needed for ordinary CLI operation.
+Use [native workflow](references/native-workflow.md) for native desktop operation or recovery; browser operation has its own workflow. A replacement route requires proven `NOT_SENT`. Preserve existing native `SENT`/`UNKNOWN` conversations. One controller owns UI actions, with one shared recovery attempt and consolidated manual handoff. No CUA is needed for ordinary CLI operation.
 
-Read [runtime checks and recovery](references/runtime-recovery.md) before dispatch or continuation. Every runner launch checks default web policy and declared input hashes; prepare Gemini evidence inside the owning project or reuse exact existing read grants. Reuse matching local setup observations, use one visible terminal for required login, and classify host, authentication, model and tool-permission failures separately. Use the bundled `--continue-from` only for an authorized new follow-up, preserving web defaults and the recorded native session. Watch live receipt phases; collect access evidence offline after completion.
+For CLI dispatch or continuation, read [runtime checks and recovery](references/runtime-recovery.md). Every runner launch checks default web policy and declared input hashes; prepare Gemini evidence inside the owning project or reuse exact existing read grants. Reuse matching local setup observations, use one visible terminal for required login, and classify host, authentication, model and tool-permission failures separately. Use the bundled `--continue-from` only for an authorized new follow-up, preserving web defaults and the recorded native session. Watch live receipt phases; collect access evidence offline after completion.
 
 ## Collect and conclude
 
@@ -40,4 +40,4 @@ Read [delivery protocol](references/delivery-protocol.md). CLI collection retain
 
 Report route, requested and observed model/effort/workflow, project binding, exposure, dispatch and collection status, material uncertainty, and locally supported findings. A focused follow-up has its own ID and is not another independent first review. Keep CLI probe success, helper tests, assisted native delivery and full review acceptance distinct.
 
-On native Windows, follow [Windows CLI setup](references/windows-setup.md) before the first dispatch. Generate a machine-local profile; never reuse a macOS profile or another user’s credentials.
+For the first CLI dispatch on Windows, follow [Windows CLI setup](references/windows-setup.md). Generate a machine-local profile; never reuse a macOS profile or another user’s credentials.

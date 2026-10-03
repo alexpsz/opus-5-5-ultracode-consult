@@ -1,6 +1,6 @@
 # Native fallback and existing-session recovery
 
-This reference applies to explicitly chosen native Desktop Code consultations, requests proven unsent before selecting native fallback, and existing native `SENT`/`UNKNOWN` conversations. New consultations otherwise use [official CLI workflow](cli-workflow.md). A CLI timeout, model mismatch or incomplete answer does not permit an automatic native resend. No CUA step is required for CLI collection.
+This reference applies to explicitly chosen native Desktop Code consultations, requests proven unsent before selecting native fallback, and existing native `SENT`/`UNKNOWN` conversations. For new interactive browser consultations, use [browser workflow](browser-workflow.md); use [official CLI workflow](cli-workflow.md) for CLI execution. A CLI timeout, model mismatch or incomplete answer does not permit an automatic native resend. No CUA step is required for CLI collection.
 
 ## Reuse before probing
 
